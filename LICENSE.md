@@ -12,7 +12,7 @@ Thank you for checking out DriftKeys! This project is fully open source, which m
 ## What You Should Do
 
 - **Give credit**: Please include a mention or link back to the original DriftKeys repository if you share or use this project publicly.
-- **Respect the license**: This project is licensed under the [MIT License](LICENSE), which means you must keep this license with any redistributed code.
+- **Respect the license**: This project is licensed under the MIT License, which means you must keep this license with any redistributed code.
 - **Have fun**: Experiment, learn, and build cool stuff!
 
 ## What You Can't Do
