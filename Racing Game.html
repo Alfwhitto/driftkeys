@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Racing Typing Game</title>
+<style>
+  /* Importing futuristic 'Orbitron' font */
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+
+  /* Body & layout */
+  body {
+    margin: 0;
+    background: linear-gradient(135deg, #1a1a1a, #000);
+    color: #0cc;
+    font-family: 'Orbitron', monospace;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+
+  /* Background image layer with slow shifting animation */
+  #backgroundLayer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: url('https://i.imgur.com/xyVD7rU.jpeg') center center / cover no-repeat;
+    opacity: 0.12;
+    animation: backgroundShift 30s linear infinite;
+    z-index: 0;
+    pointer-events: none;
+    filter: brightness(0.5) contrast(1.2);
+  }
+  @keyframes backgroundShift {
+    0% {
+      background-position: center center;
+    }
+    50% {
+      background-position: center 20%;
+    }
+    100% {
+      background-position: center center;
+    }
+  }
+
+  /* Checkered flag borders on all sides */
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    width: 100vw;
+    height: 50px;
+    background: repeating-linear-gradient(
+      45deg,
+      black 0,
+      black 12.5px,
+      white 12.5px,
+      white 25px
+    );
+    z-index: 10;
+  }
+  body::before {
+    top: 0;
+    left: 0;
+  }
+  body::after {
+    bottom: 0;
+    left: 0;
+  }
+  .flag-side-left, .flag-side-right {
+    position: fixed;
+    top: 0;
+    width: 50px;
+    height: 100vh;
+    background: repeating-linear-gradient(
+      45deg,
+      black 0,
+      black 12.5px,
+      white 12.5px,
+      white 25px
+    );
+    z-index: 10;
+  }
+  .flag-side-left {
+    left: 0;
+  }
+  .flag-side-right {
+    right: 0;
+  }
+
+  /* Main game container */
+  #game {
+    text-align: center;
+    z-index: 20;
+    filter: drop-shadow(0 0 3px #00cccc);
+  }
+
+  /* Word prompt */
+  #prompt {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    letter-spacing: 0.1em;
+    text-shadow:
+      0 0 1.5px #0cc,
+      0 0 3px #0cc,
+      0 0 5px #00cccc;
+  }
+
+  /* Input box styling */
+  #inputBox {
+    font-size: 2rem;
+    padding: 10px 20px;
+    width: 300px;
+    border: 3px solid #0cc;
+    border-radius: 30px;
+    background: transparent;
+    color: #0cc;
+    outline: none;
+    font-family: 'Orbitron', monospace;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    box-shadow:
+      0 0 3px #0cc,
+      0 0 6px #00cccc;
+    text-shadow: 0 0 1.5px #0cc;
+  }
+  #inputBox:focus {
+    border-color: #00cccc;
+    box-shadow:
+      0 0 6px #00cccc,
+      0 0 8px #0cc;
+  }
+
+  /* Message display */
+  #message {
+    margin-top: 15px;
+    font-size: 1.5rem;
+    min-height: 24px;
+    text-shadow:
+      0 0 1.5px #f44,
+      0 0 3px #f44;
+    color: #f44;
+  }
+
+  /* Speed and timer display */
+  #speed, #timer, #wpm {
+    margin-top: 10px;
+    font-size: 1.4rem;
+    text-shadow:
+      0 0 1.5px #0cc,
+      0 0 3px #0cc;
+  }
+  #statusBar {
+    margin-bottom: 20px;
+  }
+
+  /* Single car silhouette drifting (removed smaller dimmer one) */
+  .car-silhouette {
+    position: fixed;
+    width: 180px;
+    height: 70px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    filter: brightness(1.05) drop-shadow(0 0 6px #00cccc);
+    opacity: 0.65;
+    pointer-events: none;
+    z-index: 1;
+    animation: carDrift 12s linear infinite;
+    transition: filter 0.3s ease;
+  }
+  .car-silhouette:hover {
+    filter: brightness(1.15) drop-shadow(0 0 12px #00cccc);
+  }
+  .car-silhouette:nth-child(4) {
+    bottom: 15%;
+    left: -200px;
+    animation-delay: 0s;
+  }
+
+  @keyframes carDrift {
+    0% {
+      opacity: 0;
+      transform: translateX(0) translateY(0) rotate(0deg);
+    }
+    10% {
+      opacity: 1;
+    }
+    50% {
+      transform: translateX(110vw) translateY(-5px) rotate(3deg);
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(120vw) translateY(0) rotate(0deg);
+    }
+  }
+
+  /* Black flag overlay for wrong words */
+  #blackFlag {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.35);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 50;
+    animation-fill-mode: forwards;
+  }
+  @keyframes flagFlash {
+    0% {opacity: 0;}
+    30% {opacity: 0.35;}
+    70% {opacity: 0.35;}
+    100% {opacity: 0;}
+  }
+
+  /* Overlay screens for Win/Lose */
+  #overlayScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #0cc;
+    font-family: 'Orbitron', monospace;
+    font-size: 4rem;
+    text-align: center;
+    z-index: 100;
+    flex-direction: column;
+    user-select: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  #overlayScreen.visible {
+    visibility: visible;
+    opacity: 1;
+  }
+  #overlayScreen button {
+    margin-top: 30px;
+    font-size: 1.5rem;
+    padding: 12px 24px;
+    border-radius: 30px;
+    border: 2px solid #0cc;
+    background: transparent;
+    color: #0cc;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  #overlayScreen button:hover {
+    background-color: #0cc;
+    color: #000;
+  }
+
+  /* Main Menu styles */
+  #mainMenu {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.95);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #0cc;
+    font-family: 'Orbitron', monospace;
+    font-size: 2.5rem;
+    z-index: 200;
+  }
+  #mainMenu h1 {
+    margin-bottom: 40px;
+  }
+  .menu-btn {
+    margin: 10px;
+    padding: 20px 40px;
+    border: 2px solid #0cc;
+    border-radius: 40px;
+    background: transparent;
+    color: #0cc;
+    cursor: pointer;
+    font-size: 1.8rem;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .menu-btn:hover {
+    background-color: #0cc;
+    color: #000;
+  }
+</style>
+</head>
+<body>
+  <!-- Background image -->
+  <div id="backgroundLayer"></div>
+
+  <!-- Checkered flag borders on sides -->
+  <div class="flag-side-left"></div>
+  <div class="flag-side-right"></div>
+
+  <!-- Main game container -->
+  <div id="game" style="display:none;">
+    <div id="statusBar">
+      <div id="timer">Time left: 10s</div>
+      <div id="speed">Speed: 0 CPM</div>
+      <div id="wpm">WPM: 0</div>
+    </div>
+
+    <div id="prompt" aria-live="polite">Press Start</div>
+    <input
+      id="inputBox"
+      type="text"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="none"
+      spellcheck="false"
+      aria-label="Type the word shown above"
+      disabled
+    />
+    <div id="message" aria-live="assertive"></div>
+  </div>
+
+  <!-- Single drifting car silhouette -->
+  <div
+    class="car-silhouette"
+    style="background-image:url('https://i.imgur.com/R0CPL94.png');"
+  ></div>
+
+  <!-- Black flag overlay for wrong words -->
+  <div id="blackFlag"></div>
+
+  <!-- Overlay Screen for Win/Lose -->
+  <div id="overlayScreen">
+    <div id="overlayMessage"></div>
+    <button id="restartBtn">Restart</button>
+  </div>
+
+  <!-- Main Menu for selecting timer -->
+  <div id="mainMenu" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <h1 id="menuTitle">Select Timer Duration</h1>
+    <button class="menu-btn" data-time="30">30 Seconds</button>
+    <button class="menu-btn" data-time="60">60 Seconds</button>
+    <button class="menu-btn" data-time="120">120 Seconds</button>
+  </div>
+
+<script>
+  // WORD LIST for prompt words
+  const words = [
+    'speed', 'engine', 'turbo', 'racing', 'drift', 'gear', 'clutch',
+    'nitro', 'brake', 'track', 'wheel', 'tire', 'speedway', 'lap',
+    'fuel', 'shift', 'motor', 'race', 'start', 'finish', 'driver',
+    'pitstop', 'checkpoint', 'boost', 'dash', 'speedometer', 'grip',
+    'driving', 'rpm', 'car'
+  ];
+
+  // DOM Elements
+  const promptEl = document.getElementById('prompt');
+  const inputBox = document.getElementById('inputBox');
+  const messageEl = document.getElementById('message');
+  const speedEl = document.getElementById('speed');
+  const timerEl = document.getElementById('timer');
+  const wpmEl = document.getElementById('wpm');
+  const blackFlag = document.getElementById('blackFlag');
+  const overlayScreen = document.getElementById('overlayScreen');
+  const overlayMessage = document.getElementById('overlayMessage');
+  const restartBtn = document.getElementById('restartBtn');
+  const mainMenu = document.getElementById('mainMenu');
+  const menuButtons = document.querySelectorAll('.menu-btn');
+  const gameContainer = document.getElementById('game');
+
+  // Game state variables
+  let timeLeft = 10;
+  let timerDuration = 10;
+  let timerInterval;
+  let totalTypedChars = 0;
+  let startTime = 0;
+  let currentWord = '';
+  let gameActive = false;
+
+  // Function: Pick random word from list
+  function pickWord() {
+    return words[Math.floor(Math.random() * words.length)];
+  }
+
+  // Function: Update prompt with new word
+  function newWord() {
+    currentWord = pickWord();
+    promptEl.textContent = currentWord;
+    inputBox.value = '';
+    inputBox.focus();
+  }
+
+  // Function: Show black flag overlay on wrong input
+  function showBlackFlag() {
+    blackFlag.style.animation = 'flagFlash 0.5s ease forwards';
+    setTimeout(() => {
+      blackFlag.style.animation = '';
+    }, 500);
+  }
+
+  // Function: Update stats display
+  function updateStats() {
+    const now = Date.now();
+    const secondsElapsed = (now - startTime) / 1000;
+    const cpm = secondsElapsed > 0 ? Math.round(totalTypedChars / secondsElapsed * 60) : 0;
+    const wpm = secondsElapsed > 0 ? Math.round((totalTypedChars / 5) / secondsElapsed * 60) : 0;
+    speedEl.textContent = `Speed: ${cpm} CPM`;
+    wpmEl.textContent = `WPM: ${wpm}`;
+  }
+
+  // Function: End game and show overlay with result
+  function endGame() {
+    gameActive = false;
+    clearInterval(timerInterval);
+    overlayScreen.classList.add('visible');
+    overlayMessage.textContent = `Time's up! Your typing speed is ${wpmEl.textContent.split(' ')[1]} WPM.`;
+    inputBox.disabled = true;
+  }
+
+  // Function: Start game timer
+  function startTimer() {
+    startTime = Date.now();
+    timeLeft = timerDuration;
+    timerEl.textContent = `Time left: ${timeLeft}s`;
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      timerEl.textContent = `Time left: ${timeLeft}s`;
+      updateStats();
+
+      if (timeLeft <= 0) {
+        endGame();
+      }
+    }, 1000);
+  }
+
+  // Input event listener for typing input box
+  inputBox.addEventListener('keydown', (e) => {
+    if (!gameActive) return;
+
+    if (e.key === 'Enter') {
+      const typed = inputBox.value.trim();
+
+      if (typed.toLowerCase() === currentWord.toLowerCase()) {
+        // Correct word typed
+        totalTypedChars += typed.length;
+        messageEl.textContent = '';
+        newWord();
+      } else {
+        // Wrong word typed
+        messageEl.textContent = 'Wrong word, try again!';
+        showBlackFlag();
+      }
+    }
+  });
+
+  // Restart button event
+  restartBtn.addEventListener('click', () => {
+    overlayScreen.classList.remove('visible');
+    startGame();
+  });
+
+  // Main Menu buttons for timer selection
+  menuButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      timerDuration = parseInt(btn.getAttribute('data-time'), 10);
+      mainMenu.style.display = 'none';
+      gameContainer.style.display = 'block';
+      startGame();
+    });
+  });
+
+  // Function: Start game (reset variables & start timer)
+  function startGame() {
+    totalTypedChars = 0;
+    messageEl.textContent = '';
+    inputBox.disabled = false;
+    inputBox.value = '';
+    startTime = Date.now();
+    gameActive = true;
+    newWord();
+    startTimer();
+  }
+</script>
+</body>
+</html>
