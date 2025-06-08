@@ -157,6 +157,31 @@
     margin-bottom: 20px;
   }
 
+  /* Leaderboard styling */
+  #leaderboard {
+    margin-top: 30px;
+    text-align: left;
+    font-size: 1.2rem;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+    color: #0cc;
+    text-shadow:
+      0 0 1.5px #0cc,
+      0 0 3px #00cccc;
+  }
+  #leaderboard h2 {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+  }
+  #leaderboard ol {
+    padding-left: 20px;
+    margin: 0;
+  }
+  #leaderboard li {
+    margin-bottom: 6px;
+  }
+
   /* Single car silhouette drifting (removed smaller dimmer one) */
   .car-silhouette {
     position: fixed;
@@ -325,6 +350,14 @@
       disabled
     />
     <div id="message" aria-live="assertive"></div>
+
+    <!-- Leaderboard added here -->
+    <div id="leaderboard" aria-live="polite" aria-atomic="true" aria-label="Leaderboard">
+      <h2>🏁 Leaderboard</h2>
+      <ol id="leaderboardList">
+        <!-- Scores inserted dynamically -->
+      </ol>
+    </div>
   </div>
 
   <!-- Single drifting car silhouette -->
@@ -357,8 +390,7 @@
     'nitro', 'brake', 'track', 'wheel', 'tire', 'speedway', 'lap',
     'fuel', 'shift', 'motor', 'race', 'start', 'finish', 'driver',
     'pitstop', 'checkpoint', 'boost', 'dash', 'speedometer', 'grip',
-    'driving', 'rpm', 'car', 'flag', 'overtake', 'acceleration',
-    'adrenaline', 'performance', 'tuning', 'suspension', 'exhaust'
+    'driving', 'rpm', 'car'
   ];
 
   // DOM Elements
@@ -375,6 +407,7 @@
   const mainMenu = document.getElementById('mainMenu');
   const menuButtons = document.querySelectorAll('.menu-btn');
   const gameContainer = document.getElementById('game');
+  const leaderboardList = document.getElementById('leaderboardList');
 
   // Game state variables
   let timeLeft = 10;
@@ -398,96 +431,138 @@
     inputBox.focus();
   }
 
-  // Function: Show black flag overlay on wrong input
-  function showBlackFlag() {
+  // Function: Show black flag overlay on wrong word
+  function flashBlackFlag() {
     blackFlag.style.animation = 'flagFlash 0.5s ease forwards';
     setTimeout(() => {
       blackFlag.style.animation = '';
     }, 500);
   }
 
-  // Function: Update stats display
-  function updateStats() {
-    const now = Date.now();
-    const secondsElapsed = (now - startTime) / 1000;
-    const cpm = secondsElapsed > 0 ? Math.round(totalTypedChars / secondsElapsed * 60) : 0;
-    const wpm = secondsElapsed > 0 ? Math.round((totalTypedChars / 5) / secondsElapsed * 60) : 0;
+  // Function: Calculate CPM & WPM based on total typed chars and elapsed time
+  function updateSpeed() {
+    const elapsedSeconds = (Date.now() - startTime) / 1000;
+    const cpm = elapsedSeconds > 0 ? Math.round((totalTypedChars / elapsedSeconds) * 60) : 0;
+    const wpm = elapsedSeconds > 0 ? Math.round((totalTypedChars / 5) / (elapsedSeconds / 60)) : 0;
+
     speedEl.textContent = `Speed: ${cpm} CPM`;
     wpmEl.textContent = `WPM: ${wpm}`;
+    return { cpm, wpm };
   }
 
-  // Function: End game and show overlay with result
+  // Function: End game and show overlay
   function endGame() {
     gameActive = false;
     clearInterval(timerInterval);
-    overlayScreen.classList.add('visible');
-    overlayMessage.textContent = `Time's up! Your typing speed is ${wpmEl.textContent.split(' ')[1]} WPM.`;
     inputBox.disabled = true;
+
+    const { wpm } = updateSpeed();
+
+    // Save score to leaderboard
+    saveScore(wpm);
+
+    // Show overlay with score
+    overlayMessage.textContent = `Time's Up!\nYour WPM: ${wpm}`;
+    overlayScreen.classList.add('visible');
+    loadLeaderboard(); // Update leaderboard display
   }
 
   // Function: Start game timer
   function startTimer() {
-    startTime = Date.now();
     timeLeft = timerDuration;
     timerEl.textContent = `Time left: ${timeLeft}s`;
+    startTime = Date.now();
+    totalTypedChars = 0;
+    inputBox.disabled = false;
+    inputBox.value = '';
+    inputBox.focus();
+    newWord();
+
     timerInterval = setInterval(() => {
       timeLeft--;
       timerEl.textContent = `Time left: ${timeLeft}s`;
-      updateStats();
+      updateSpeed();
 
       if (timeLeft <= 0) {
         endGame();
       }
     }, 1000);
+
+    gameActive = true;
   }
 
-  // Input event listener for typing input box
-  inputBox.addEventListener('keydown', (e) => {
+  // Function: Save score in localStorage leaderboard
+  function saveScore(newScore) {
+    if (newScore <= 0) return;
+
+    let leaderboard = JSON.parse(localStorage.getItem('typingLeaderboard') || '[]');
+
+    // Add new score and sort descending
+    leaderboard.push(newScore);
+    leaderboard.sort((a,b) => b - a);
+
+    // Keep only top 5 scores
+    leaderboard = leaderboard.slice(0, 5);
+
+    localStorage.setItem('typingLeaderboard', JSON.stringify(leaderboard));
+  }
+
+  // Function: Load leaderboard and display it
+  function loadLeaderboard() {
+    let leaderboard = JSON.parse(localStorage.getItem('typingLeaderboard') || '[]');
+    leaderboardList.innerHTML = '';
+
+    if (leaderboard.length === 0) {
+      leaderboardList.innerHTML = '<li>No scores yet. Play to add!</li>';
+      return;
+    }
+
+    leaderboard.forEach((score, index) => {
+      const li = document.createElement('li');
+      li.textContent = `${index + 1}. ${score} WPM`;
+      leaderboardList.appendChild(li);
+    });
+  }
+
+  // Handle user input checking
+  inputBox.addEventListener('input', () => {
     if (!gameActive) return;
+    const typed = inputBox.value.trim();
 
-    if (e.key === 'Enter') {
-      const typed = inputBox.value.trim();
-
-      if (typed.toLowerCase() === currentWord.toLowerCase()) {
-        // Correct word typed
-        totalTypedChars += typed.length;
-        messageEl.textContent = '';
-        newWord();
-      } else {
-        // Wrong word typed
-        messageEl.textContent = 'Wrong word, try again!';
-        showBlackFlag();
-      }
+    if (typed === currentWord) {
+      totalTypedChars += currentWord.length;
+      messageEl.textContent = '';
+      newWord();
+    } else if (!currentWord.startsWith(typed)) {
+      messageEl.textContent = 'Mistake! Try again.';
+      flashBlackFlag();
+    } else {
+      messageEl.textContent = '';
     }
   });
 
-  // Restart button event
+  // Restart button handler
   restartBtn.addEventListener('click', () => {
     overlayScreen.classList.remove('visible');
-    startGame();
+    mainMenu.style.display = 'flex';
+    gameContainer.style.display = 'none';
   });
 
-  // Main Menu buttons for timer selection
+  // Timer selection menu buttons
   menuButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       timerDuration = parseInt(btn.getAttribute('data-time'), 10);
       mainMenu.style.display = 'none';
       gameContainer.style.display = 'block';
-      startGame();
+      loadLeaderboard();
+      startTimer();
     });
   });
 
-  // Function: Start game (reset variables & start timer)
-  function startGame() {
-    totalTypedChars = 0;
-    messageEl.textContent = '';
-    inputBox.disabled = false;
-    inputBox.value = '';
-    startTime = Date.now();
-    gameActive = true;
-    newWord();
-    startTimer();
-  }
+  // Initialize leaderboard on page load
+  window.addEventListener('load', () => {
+    loadLeaderboard();
+  });
 </script>
 </body>
 </html>
