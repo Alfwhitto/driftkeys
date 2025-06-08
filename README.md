@@ -30,6 +30,6 @@ DriftKeys is a fast-paced, racing-themed typing game that challenges your speed 
 No installation needed! Just download or clone the repository and open `Racing Game.html` in any modern web browser.
 
 ```bash
-git clone https://github.com/yourusername/driftkeys.git
+git clone https://github.com/Alfwhitto/driftkeys.git
 cd driftkeys
 # Open "Racing Game.html" in your browser
